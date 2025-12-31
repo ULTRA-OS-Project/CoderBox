@@ -1,230 +1,186 @@
-// Apps/IDE/main.cpp
-// ULTRA IDE Entry Point
-// Version: 1.0.0
-// Last Modified: 2025-12-28
-// Author: UltraCanvas Framework / ULTRA IDE
+// Apps/CoderBox/main.cpp
+// CoderBox Application Entry Point
+// Version: 2.0.0
+// Last Modified: 2025-12-30
+// Author: UltraCanvas Framework / CoderBox
 
-#include "UltraIDE.h"
+#include "CoderBox.h"                // Business logic layer
+#include "UI/UCCoderBox_Core.h"      // UI layer
 #include <iostream>
 #include <string>
-#include <vector>
-#include <cstring>
 
-// Platform-specific
-#ifdef _WIN32
-    #include <windows.h>
-#else
-    #include <signal.h>
-#endif
+using namespace UltraCanvas;
+using namespace UltraCanvas::CoderBox;
 
-using namespace UltraCanvas::IDE;
-
-// ============================================================================
-// SIGNAL HANDLING
-// ============================================================================
-
-#ifndef _WIN32
-void SignalHandler(int signal) {
-    std::cout << "\n[ULTRA IDE] Received signal " << signal << ", shutting down..." << std::endl;
-    UltraIDE::Instance().Shutdown();
-    exit(0);
-}
-#endif
-
-// ============================================================================
-// COMMAND LINE PARSING
-// ============================================================================
-
-struct CommandLineArgs {
-    std::string projectPath;
-    std::string filePath;
-    bool showHelp = false;
-    bool showVersion = false;
-    bool listPlugins = false;
-    bool verbose = false;
-    bool buildOnly = false;
-    std::string configFile;
-};
-
+/**
+ * @brief Print usage information
+ */
 void PrintUsage(const char* programName) {
-    std::cout << "\nUsage: " << programName << " [options] [project.ucproj | file]\n\n";
+    std::cout << "CoderBox - Integrated Development Environment\n";
+    std::cout << "Built on UltraCanvas Framework\n\n";
+    std::cout << "Usage: " << programName << " [options] [project.ucproj]\n\n";
     std::cout << "Options:\n";
-    std::cout << "  -h, --help           Show this help message\n";
-    std::cout << "  -v, --version        Show version information\n";
-    std::cout << "  -p, --plugins        List available compiler plugins\n";
-    std::cout << "  -c, --config <file>  Use specified configuration file\n";
-    std::cout << "  -b, --build          Build project and exit\n";
-    std::cout << "  --verbose            Enable verbose output\n";
-    std::cout << "\n";
-    std::cout << "Examples:\n";
-    std::cout << "  " << programName << "                     # Start IDE\n";
-    std::cout << "  " << programName << " MyProject.ucproj   # Open project\n";
-    std::cout << "  " << programName << " main.cpp           # Open file\n";
-    std::cout << "  " << programName << " -b MyProject.ucproj # Build project\n";
-    std::cout << "  " << programName << " -p                  # List plugins\n";
-    std::cout << "\n";
+    std::cout << "  --help, -h       Show this help message\n";
+    std::cout << "  --version, -v    Show version information\n";
+    std::cout << "  --light          Use light theme\n";
+    std::cout << "  --dark           Use dark theme (default)\n";
+    std::cout << "  --highcontrast   Use high contrast theme\n";
+    std::cout << "  --width <n>      Set window width (default: 1280)\n";
+    std::cout << "  --height <n>     Set window height (default: 720)\n";
+    std::cout << std::endl;
 }
 
-CommandLineArgs ParseCommandLine(int argc, char* argv[]) {
-    CommandLineArgs args;
+/**
+ * @brief Print version information
+ */
+void PrintVersion() {
+    std::cout << "CoderBox v" << CODERBOX_VERSION << "\n";
+    std::cout << "Built on UltraCanvas Framework\n";
+    std::cout << "Copyright (c) 2025 UltraCanvas Framework\n";
+    std::cout << std::endl;
+}
+
+/**
+ * @brief Parse command line arguments
+ */
+CoderBoxConfiguration ParseArguments(int argc, char* argv[], std::string& projectPath) {
+    CoderBoxConfiguration config;
     
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
         
-        if (arg == "-h" || arg == "--help") {
-            args.showHelp = true;
-        } else if (arg == "-v" || arg == "--version") {
-            args.showVersion = true;
-        } else if (arg == "-p" || arg == "--plugins") {
-            args.listPlugins = true;
-        } else if (arg == "--verbose") {
-            args.verbose = true;
-        } else if (arg == "-b" || arg == "--build") {
-            args.buildOnly = true;
-        } else if ((arg == "-c" || arg == "--config") && i + 1 < argc) {
-            args.configFile = argv[++i];
-        } else if (arg[0] != '-') {
-            // Check if it's a project file or source file
-            if (arg.find(".ucproj") != std::string::npos) {
-                args.projectPath = arg;
-            } else {
-                args.filePath = arg;
-            }
-        } else {
+        if (arg == "--help" || arg == "-h") {
+            PrintUsage(argv[0]);
+            exit(0);
+        }
+        else if (arg == "--version" || arg == "-v") {
+            PrintVersion();
+            exit(0);
+        }
+        else if (arg == "--light") {
+            config.darkTheme = false;
+        }
+        else if (arg == "--dark") {
+            config.darkTheme = true;
+        }
+        else if (arg == "--highcontrast") {
+            // High contrast is typically dark-based
+            config.darkTheme = true;
+        }
+        else if (arg == "--width" && i + 1 < argc) {
+            config.windowWidth = std::stoi(argv[++i]);
+        }
+        else if (arg == "--height" && i + 1 < argc) {
+            config.windowHeight = std::stoi(argv[++i]);
+        }
+        else if (arg[0] != '-') {
+            // Assume it's a project file
+            projectPath = arg;
+        }
+        else {
             std::cerr << "Unknown option: " << arg << std::endl;
-            args.showHelp = true;
+            PrintUsage(argv[0]);
+            exit(1);
         }
     }
     
-    return args;
+    return config;
 }
 
-// ============================================================================
-// MAIN FUNCTION
-// ============================================================================
-
+/**
+ * @brief Main entry point
+ */
 int main(int argc, char* argv[]) {
+    std::cout << "========================================\n";
+    std::cout << "         CoderBox Starting...\n";
+    std::cout << "========================================\n\n";
+    
     // Parse command line arguments
-    CommandLineArgs args = ParseCommandLine(argc, argv);
+    std::string projectPath;
+    CoderBoxConfiguration uiConfig = ParseArguments(argc, argv, projectPath);
     
-    // Show help
-    if (args.showHelp) {
-        PrintUsage(argv[0]);
-        return 0;
+    // Step 1: Initialize business logic layer
+    CoderBoxConfig businessConfig = CoderBoxConfig::Default();
+    if (!CoderBox::Instance().Initialize(businessConfig)) {
+        std::cerr << "Failed to initialize CoderBox business logic" << std::endl;
+        return -1;
     }
     
-    // Show version
-    if (args.showVersion) {
-        std::cout << UltraIDE::Instance().GetBuildInfo() << std::endl;
-        return 0;
+    // Step 2: Create and initialize UI layer
+    auto app = CreateCoderBox(uiConfig);
+    if (!app) {
+        std::cerr << "Failed to create CoderBox UI application" << std::endl;
+        CoderBox::Instance().Shutdown();
+        return -1;
     }
     
-    // Set up signal handlers (Unix)
-#ifndef _WIN32
-    signal(SIGINT, SignalHandler);
-    signal(SIGTERM, SignalHandler);
-#endif
+    // Step 3: Connect UI layer to business logic layer
+    // Build callbacks
+    CoderBox::Instance().onBuildOutput = [&app](const std::string& line) {
+        app->WriteBuildOutput(line + "\n");
+    };
     
-    // Initialize IDE configuration
-    UltraIDEConfig config = UltraIDEConfig::Default();
+    CoderBox::Instance().onCompilerMessage = [&app](const CompilerMessage& msg) {
+        if (msg.type == MessageType::Error) {
+            app->WriteError(msg.file, msg.line, msg.column, msg.message);
+        } else if (msg.type == MessageType::Warning) {
+            app->WriteWarning(msg.file, msg.line, msg.column, msg.message);
+        }
+    };
     
-    // Load custom config if specified
-    if (!args.configFile.empty()) {
-        if (!config.LoadFromFile(args.configFile)) {
-            std::cerr << "Warning: Could not load config file: " << args.configFile << std::endl;
+    CoderBox::Instance().onBuildComplete = [&app](const BuildResult& result) {
+        app->SetErrorCounts(result.errorCount, result.warningCount);
+        app->SetStatus(result.success ? "Build succeeded" : "Build failed");
+    };
+    
+    CoderBox::Instance().onStateChange = [&app](CoderBoxState state) {
+        app->SetStatus(CoderBoxStateToString(state));
+    };
+    
+    // Connect UI commands to business logic
+    app->onCommand = [](CoderBoxCommand cmd) {
+        switch (cmd) {
+            case CoderBoxCommand::BuildBuild:
+                CoderBox::Instance().Build();
+                break;
+            case CoderBoxCommand::BuildRebuild:
+                CoderBox::Instance().Rebuild();
+                break;
+            case CoderBoxCommand::BuildClean:
+                CoderBox::Instance().Clean();
+                break;
+            case CoderBoxCommand::BuildRun:
+                CoderBox::Instance().Run();
+                break;
+            case CoderBoxCommand::BuildStop:
+                CoderBox::Instance().CancelBuild();
+                CoderBox::Instance().Stop();
+                break;
+            default:
+                // Other commands handled by UI layer
+                break;
+        }
+    };
+    
+    // Step 4: Open project if specified
+    if (!projectPath.empty()) {
+        std::cout << "Opening project: " << projectPath << std::endl;
+        auto project = CoderBox::Instance().OpenProject(projectPath);
+        if (project) {
+            app->OpenProject(projectPath);
         }
     }
     
-    // Initialize IDE
-    if (!UltraIDE::Instance().Initialize(config)) {
-        std::cerr << "Failed to initialize ULTRA IDE" << std::endl;
-        return 1;
-    }
+    std::cout << "\nCoderBox is ready.\n";
+    std::cout << "Press Ctrl+N for new file, Ctrl+O to open file.\n\n";
     
-    // List plugins only
-    if (args.listPlugins) {
-        UltraIDE::Instance().PrintPluginStatus();
-        return 0;
-    }
+    // Step 5: Run the application main loop
+    int result = app->Run();
     
-    // Open project if specified
-    if (!args.projectPath.empty()) {
-        auto project = UltraIDE::Instance().OpenProject(args.projectPath);
-        if (!project) {
-            std::cerr << "Failed to open project: " << args.projectPath << std::endl;
-            return 1;
-        }
-        
-        std::cout << "[ULTRA IDE] Opened project: " << project->name << std::endl;
-        
-        // Build only mode
-        if (args.buildOnly) {
-            std::cout << "[ULTRA IDE] Building project..." << std::endl;
-            UltraIDE::Instance().Build();
-            
-            // Wait for build to complete
-            while (UltraIDE::Instance().IsBuildInProgress()) {
-                // Small sleep
-#ifdef _WIN32
-                Sleep(100);
-#else
-                usleep(100000);
-#endif
-            }
-            
-            const auto& result = UltraIDE::Instance().GetLastBuildResult();
-            std::cout << "[ULTRA IDE] " << result.GetSummary() << std::endl;
-            
-            return result.success ? 0 : 1;
-        }
-    }
+    // Step 6: Shutdown
+    CoderBox::Instance().Shutdown();
     
-    // Open file if specified
-    if (!args.filePath.empty()) {
-        UltraIDE::Instance().OpenFile(args.filePath);
-        std::cout << "[ULTRA IDE] Opened file: " << args.filePath << std::endl;
-    }
+    std::cout << "\nCoderBox terminated with code: " << result << std::endl;
     
-    // Run the IDE
-    int exitCode = UltraIDE::Instance().Run();
-    
-    // Shutdown
-    UltraIDE::Instance().Shutdown();
-    
-    return exitCode;
+    return result;
 }
-
-// ============================================================================
-// WINDOWS ENTRY POINT
-// ============================================================================
-
-#ifdef _WIN32
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, 
-                   LPSTR lpCmdLine, int nCmdShow) {
-    // Convert command line to argc/argv format
-    int argc;
-    LPWSTR* argvW = CommandLineToArgvW(GetCommandLineW(), &argc);
-    
-    std::vector<std::string> argStrings(argc);
-    std::vector<char*> argv(argc);
-    
-    for (int i = 0; i < argc; i++) {
-        // Convert wide string to narrow string
-        int size = WideCharToMultiByte(CP_UTF8, 0, argvW[i], -1, NULL, 0, NULL, NULL);
-        argStrings[i].resize(size);
-        WideCharToMultiByte(CP_UTF8, 0, argvW[i], -1, &argStrings[i][0], size, NULL, NULL);
-        argv[i] = &argStrings[i][0];
-    }
-    
-    LocalFree(argvW);
-    
-    // Allocate console for debug output
-#ifdef _DEBUG
-    AllocConsole();
-    freopen("CONOUT$", "w", stdout);
-    freopen("CONOUT$", "w", stderr);
-#endif
-    
-    return main(argc, argv.data());
-}
-#endif

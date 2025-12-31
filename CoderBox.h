@@ -1,21 +1,21 @@
-// Apps/IDE/UltraIDE.h
-// Main ULTRA IDE Application Header
-// Version: 1.0.0
-// Last Modified: 2025-12-28
-// Author: UltraCanvas Framework / ULTRA IDE
+// Apps/CoderBox/CoderBox.h
+// CoderBox - Main Application Business Logic
+// Version: 2.0.0
+// Last Modified: 2025-12-30
+// Author: UltraCanvas Framework / CoderBox
 #pragma once
 
 // ============================================================================
-// ULTRA IDE - Integrated Development Environment for ULTRA OS
+// CODERBOX - Integrated Development Environment for ULTRA OS
 // ============================================================================
 //
-// Features:
-// - Multi-language compiler support via plugin architecture
-// - Background compilation with real-time output parsing
-// - CMake project integration
-// - Syntax-highlighted code editor
-// - Tabbed output console (Build/Errors/Warnings/Messages)
-// - Project management with JSON serialization
+// This file contains the business logic layer for CoderBox:
+// - Plugin registration and management
+// - Build orchestration
+// - Project lifecycle management
+// - Configuration management
+//
+// The UI layer is implemented in UI/UCCoderBoxApplication.h
 //
 // Supported Languages:
 // - C/C++ (GCC/G++/Clang)
@@ -36,12 +36,8 @@
 #include <functional>
 #include <map>
 
-// Core UltraCanvas includes
-// #include "UltraCanvas/Core/UltraCanvasApplication.h"
-// #include "UltraCanvas/Core/UltraCanvasWindow.h"
-
 // IDE Component includes
-#include "Project/UCIDEProject.h"
+#include "Project/UCCoderBoxProject.h"
 #include "Build/UCBuildManager.h"
 #include "Build/UCBuildOutput.h"
 #include "Build/IUCCompilerPlugin.h"
@@ -58,47 +54,30 @@
 #include "Build/Plugins/UCLuaPlugin.h"
 
 namespace UltraCanvas {
-namespace IDE {
+namespace CoderBox {
 
 // ============================================================================
-// ULTRA IDE VERSION INFO
+// CODERBOX VERSION INFO
 // ============================================================================
 
-constexpr const char* ULTRAIDE_VERSION = "1.0.0";
-constexpr const char* ULTRAIDE_NAME = "ULTRA IDE";
-constexpr const char* ULTRAIDE_BUILD_DATE = __DATE__;
-constexpr int ULTRAIDE_VERSION_MAJOR = 1;
-constexpr int ULTRAIDE_VERSION_MINOR = 0;
-constexpr int ULTRAIDE_VERSION_PATCH = 0;
+constexpr const char* CODERBOX_VERSION = "2.0.0";
+constexpr const char* CODERBOX_NAME = "CoderBox";
+constexpr const char* CODERBOX_BUILD_DATE = __DATE__;
+constexpr int CODERBOX_VERSION_MAJOR = 2;
+constexpr int CODERBOX_VERSION_MINOR = 0;
+constexpr int CODERBOX_VERSION_PATCH = 0;
 
 // ============================================================================
-// IDE CONFIGURATION
+// CODERBOX CONFIGURATION
 // ============================================================================
 
 /**
- * @brief IDE application configuration
+ * @brief CoderBox application configuration
+ * 
+ * This contains settings for the business logic layer.
+ * UI-specific settings are in CoderBoxConfiguration (UCCoderBoxApplication.h)
  */
-struct UltraIDEConfig {
-    // Window settings
-    std::string windowTitle = "ULTRA IDE";
-    int windowWidth = 1400;
-    int windowHeight = 900;
-    bool maximized = false;
-    bool rememberWindowState = true;
-    
-    // Theme settings
-    std::string themeName = "dark";
-    std::string fontFamily = "Consolas";
-    int fontSize = 12;
-    
-    // Editor settings
-    int tabSize = 4;
-    bool insertSpaces = true;
-    bool autoIndent = true;
-    bool showLineNumbers = true;
-    bool highlightCurrentLine = true;
-    bool wordWrap = false;
-    
+struct CoderBoxConfig {
     // Build settings
     bool autoBuildOnSave = false;
     bool showBuildNotifications = true;
@@ -117,7 +96,7 @@ struct UltraIDEConfig {
     /**
      * @brief Get default configuration
      */
-    static UltraIDEConfig Default();
+    static CoderBoxConfig Default();
     
     /**
      * @brief Load configuration from file
@@ -131,13 +110,13 @@ struct UltraIDEConfig {
 };
 
 // ============================================================================
-// IDE STATE
+// CODERBOX STATE
 // ============================================================================
 
 /**
  * @brief Current state of the IDE
  */
-enum class IDEState {
+enum class CoderBoxState {
     Initializing,
     Ready,
     Building,
@@ -147,69 +126,65 @@ enum class IDEState {
 };
 
 /**
- * @brief Convert IDEState to string
+ * @brief Convert CoderBoxState to string
  */
-inline std::string IDEStateToString(IDEState state) {
+inline std::string CoderBoxStateToString(CoderBoxState state) {
     switch (state) {
-        case IDEState::Initializing:  return "Initializing";
-        case IDEState::Ready:         return "Ready";
-        case IDEState::Building:      return "Building";
-        case IDEState::Running:       return "Running";
-        case IDEState::Debugging:     return "Debugging";
-        case IDEState::ShuttingDown:  return "Shutting Down";
-        default:                      return "Unknown";
+        case CoderBoxState::Initializing:  return "Initializing";
+        case CoderBoxState::Ready:         return "Ready";
+        case CoderBoxState::Building:      return "Building";
+        case CoderBoxState::Running:       return "Running";
+        case CoderBoxState::Debugging:     return "Debugging";
+        case CoderBoxState::ShuttingDown:  return "Shutting Down";
+        default:                           return "Unknown";
     }
 }
 
 // ============================================================================
-// ULTRA IDE MAIN CLASS
+// CODERBOX MAIN CLASS (BUSINESS LOGIC)
 // ============================================================================
 
 /**
- * @brief Main ULTRA IDE Application Class
+ * @brief CoderBox Business Logic Class
  * 
- * This class orchestrates all IDE functionality:
+ * This class orchestrates all non-UI IDE functionality:
  * - Plugin registration and management
  * - Project lifecycle
  * - Build orchestration
- * - UI coordination
+ * 
+ * The UI layer (UCCoderBoxApplication) uses this class for all
+ * business operations.
  */
-class UltraIDE {
+class CoderBox {
 public:
     /**
      * @brief Get singleton instance
      */
-    static UltraIDE& Instance();
+    static CoderBox& Instance();
     
     // ===== LIFECYCLE =====
     
     /**
-     * @brief Initialize the IDE application
+     * @brief Initialize the business logic layer
      * @param config Configuration options
      * @return true if initialization succeeded
      */
-    bool Initialize(const UltraIDEConfig& config = UltraIDEConfig::Default());
+    bool Initialize(const CoderBoxConfig& config = CoderBoxConfig::Default());
     
     /**
-     * @brief Run the IDE main loop
-     * @return Exit code
-     */
-    int Run();
-    
-    /**
-     * @brief Shutdown the IDE
+     * @brief Shutdown the business logic layer
      */
     void Shutdown();
     
     /**
-     * @brief Check if IDE is running
+     * @brief Check if initialized
      */
-    bool IsRunning() const { return running; }
+    bool IsInitialized() const { return initialized; }
     
     /**
-     * @brief Get current IDE state
+     * @brief Get current state
      */
-    IDEState GetState() const { return currentState; }
+    CoderBoxState GetState() const { return currentState; }
     
     // ===== PLUGIN MANAGEMENT =====
     
@@ -253,7 +228,7 @@ public:
     /**
      * @brief Create a new project
      */
-    std::shared_ptr<UCIDEProject> NewProject(
+    std::shared_ptr<UCCoderBoxProject> NewProject(
         const std::string& name,
         const std::string& path,
         CompilerType compiler = CompilerType::GPlusPlus
@@ -262,12 +237,12 @@ public:
     /**
      * @brief Open an existing project
      */
-    std::shared_ptr<UCIDEProject> OpenProject(const std::string& projectPath);
+    std::shared_ptr<UCCoderBoxProject> OpenProject(const std::string& projectPath);
     
     /**
      * @brief Import a CMake project
      */
-    std::shared_ptr<UCIDEProject> ImportCMakeProject(const std::string& cmakeListsPath);
+    std::shared_ptr<UCCoderBoxProject> ImportCMakeProject(const std::string& cmakeListsPath);
     
     /**
      * @brief Save current project
@@ -282,12 +257,22 @@ public:
     /**
      * @brief Get active project
      */
-    std::shared_ptr<UCIDEProject> GetActiveProject() const;
+    std::shared_ptr<UCCoderBoxProject> GetActiveProject() const;
+    
+    /**
+     * @brief Set active project
+     */
+    void SetActiveProject(std::shared_ptr<UCCoderBoxProject> project);
     
     /**
      * @brief Get recent projects list
      */
     std::vector<std::string> GetRecentProjects() const;
+    
+    /**
+     * @brief Add to recent projects
+     */
+    void AddToRecentProjects(const std::string& projectPath);
     
     // ===== BUILD OPERATIONS =====
     
@@ -336,45 +321,13 @@ public:
      */
     const BuildResult& GetLastBuildResult() const;
     
-    // ===== FILE OPERATIONS =====
-    
-    /**
-     * @brief Open a file in the editor
-     */
-    void OpenFile(const std::string& filePath);
-    
-    /**
-     * @brief Save the active file
-     */
-    void SaveFile();
-    
-    /**
-     * @brief Save all open files
-     */
-    void SaveAllFiles();
-    
-    /**
-     * @brief Close a file
-     */
-    void CloseFile(const std::string& filePath);
-    
-    /**
-     * @brief Get list of open files
-     */
-    std::vector<std::string> GetOpenFiles() const;
-    
-    /**
-     * @brief Get active file path
-     */
-    std::string GetActiveFile() const;
-    
     // ===== CONFIGURATION =====
     
     /**
-     * @brief Get IDE configuration
+     * @brief Get configuration
      */
-    UltraIDEConfig& GetConfig() { return config; }
-    const UltraIDEConfig& GetConfig() const { return config; }
+    CoderBoxConfig& GetConfig() { return config; }
+    const CoderBoxConfig& GetConfig() const { return config; }
     
     /**
      * @brief Save configuration
@@ -394,7 +347,7 @@ public:
     // ===== UTILITIES =====
     
     /**
-     * @brief Get IDE version string
+     * @brief Get version string
      */
     std::string GetVersionString() const;
     
@@ -404,53 +357,44 @@ public:
     std::string GetBuildInfo() const;
     
     /**
-     * @brief Print welcome message
+     * @brief Print welcome message to console
      */
     void PrintWelcome() const;
     
     // ===== CALLBACKS =====
     
-    std::function<void(IDEState)> onStateChange;
-    std::function<void(std::shared_ptr<UCIDEProject>)> onProjectOpen;
-    std::function<void(std::shared_ptr<UCIDEProject>)> onProjectClose;
+    std::function<void(CoderBoxState)> onStateChange;
+    std::function<void(std::shared_ptr<UCCoderBoxProject>)> onProjectOpen;
+    std::function<void(std::shared_ptr<UCCoderBoxProject>)> onProjectClose;
     std::function<void(const BuildResult&)> onBuildComplete;
     std::function<void(const std::string&)> onBuildOutput;
     std::function<void(const CompilerMessage&)> onCompilerMessage;
-    std::function<void(const std::string&)> onFileOpen;
-    std::function<void(const std::string&)> onFileSave;
     std::function<void(const std::string&)> onError;
 
 private:
-    UltraIDE();
-    ~UltraIDE();
+    CoderBox();
+    ~CoderBox();
     
-    UltraIDE(const UltraIDE&) = delete;
-    UltraIDE& operator=(const UltraIDE&) = delete;
+    CoderBox(const CoderBox&) = delete;
+    CoderBox& operator=(const CoderBox&) = delete;
     
     // ===== INTERNAL METHODS =====
     
-    void SetState(IDEState state);
+    void SetState(CoderBoxState state);
     void SetupBuildCallbacks();
     void SetupProjectCallbacks();
     
-    bool InitializeUI();
     bool InitializeBuildSystem();
     bool InitializeProjectSystem();
-    
-    void ProcessEvents();
-    void UpdateUI();
     
     // ===== STATE =====
     
     bool initialized = false;
-    bool running = false;
-    IDEState currentState = IDEState::Initializing;
+    CoderBoxState currentState = CoderBoxState::Initializing;
     
-    UltraIDEConfig config;
+    CoderBoxConfig config;
     
-    std::shared_ptr<UCIDEProject> activeProject;
-    std::vector<std::string> openFiles;
-    std::string activeFile;
+    std::shared_ptr<UCCoderBoxProject> activeProject;
     
     BuildResult lastBuildResult;
     
@@ -459,25 +403,11 @@ private:
 };
 
 // ============================================================================
-// GLOBAL REGISTRATION FUNCTIONS
+// GLOBAL CONVENIENCE FUNCTIONS
 // ============================================================================
 
 /**
  * @brief Register all built-in compiler plugins
- * 
- * This function registers all standard compiler plugins with the
- * UCCompilerPluginRegistry. It should be called during IDE initialization.
- * 
- * Registered plugins:
- * - UCGCCPlugin (GCC and G++)
- * - UCFreePascalPlugin
- * - UCRustPlugin
- * - UCPythonPlugin
- * - UCJavaPlugin
- * - UCGoPlugin
- * - UCCSharpPlugin
- * - UCFortranPlugin
- * - UCLuaPlugin
  */
 void RegisterAllCompilerPlugins();
 
@@ -487,11 +417,11 @@ void RegisterAllCompilerPlugins();
 void DetectAndPrintCompilers();
 
 /**
- * @brief Get IDE instance (convenience function)
+ * @brief Get CoderBox instance (convenience function)
  */
-inline UltraIDE& GetIDE() {
-    return UltraIDE::Instance();
+inline CoderBox& GetCoderBox() {
+    return CoderBox::Instance();
 }
 
-} // namespace IDE
+} // namespace CoderBox
 } // namespace UltraCanvas
